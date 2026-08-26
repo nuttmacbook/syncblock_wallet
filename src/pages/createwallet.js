@@ -39,8 +39,8 @@ window.uploadQr = async () => {
     document.querySelector("#log").textContent = (await readQR(photo)) ?? "No QR code found in that image";
 };
 
-window.generateQR = async () => {
-    const qr = await makeQR("0x112233445566");
+window.generateQR = async (value) => {
+    const qr = await makeQR(value, { logo: "/logo.png" });
     const imgEl = document.querySelector("#genImage");
     if (imgEl.src.startsWith("blob:")) URL.revokeObjectURL(imgEl.src);
     imgEl.src = URL.createObjectURL(qr);
@@ -60,7 +60,7 @@ export function render(params) {
                 <div id="ScanQRBTN" class="flex justify-center gap-4">
                     <button onclick="scanQr()" class="bg-blue-400 p-4 py-2 text-white rounded">Scan QR</button>
                     <button onclick="uploadQr()" class="bg-blue-400 p-4 py-2 text-white rounded">Upload</button>
-                    <button onclick="generateQR()" class="bg-blue-400 p-4 py-2 text-white rounded">Generate</button>
+                    <button onclick="generateQR('${wallet.address}')" class="bg-blue-400 p-4 py-2 text-white rounded">Generate</button>
                 </div>
                 <div id="log">Please Scan QR</div>
                 <video id="videoQR" playsinline muted

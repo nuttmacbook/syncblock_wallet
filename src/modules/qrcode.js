@@ -157,10 +157,45 @@ export async function readQR(blob) {
 
 export const MAX_BYTES = { low: 2953, medium: 2331, quartile: 1663, high: 1273 };
 
-export function makeQR(text, { scale = 10, ecc = 'medium' } = {}) {
+async function loadImage(source) {
+    if (source instanceof Blob) return createImageBitmap(source);
+    if (typeof source === 'string') {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = source;
+        await img.decode();
+        return img;
+    }
+    return source;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+export async function makeQR(text, options = {}) {
+    const {
+        scale = 10,
+        logo = null,
+        logoRatio = 0.2,
+        logoPadding = 0,
+        logoRadius = 0,
+        verify = true,
+    } = options;
+    const ecc = options.ecc ?? (logo ? 'high' : 'medium');
+
     const bytes = new TextEncoder().encode(text).length;
     if (bytes > MAX_BYTES[ecc]) {
         throw new RangeError(`Payload is ${bytes} bytes, exceeds QR capacity (max ${MAX_BYTES[ecc]} bytes at ecc="${ecc}")`);
+    }
+    if (logo && logoRatio > 0.25) {
+        throw new RangeError(`logoRatio ${logoRatio} is too large, use 0.25 or less`);
     }
 
     const border = 4;
@@ -169,7 +204,7 @@ export function makeQR(text, { scale = 10, ecc = 'medium' } = {}) {
 
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = '#000';
@@ -178,5 +213,31 @@ export function makeQR(text, { scale = 10, ecc = 'medium' } = {}) {
             if (m[y][x]) ctx.fillRect((x + border) * scale, (y + border) * scale, scale, scale);
         }
     }
+
+    if (logo) {
+        const image = await loadImage(logo);
+        const box = Math.round(size * logoRatio);
+        const left = Math.round((size - box) / 2);
+
+        ctx.fillStyle = '#fff';
+        roundRect(ctx, left - logoPadding, left - logoPadding, box + logoPadding * 2, box + logoPadding * 2, logoRadius);
+        ctx.fill();
+
+        const iw = image.width || image.naturalWidth;
+        const ih = image.height || image.naturalHeight;
+        const fit = Math.min(box / iw, box / ih);
+        const dw = iw * fit;
+        const dh = ih * fit;
+        ctx.drawImage(image, left + (box - dw) / 2, left + (box - dh) / 2, dw, dh);
+        if (image.close) image.close();
+
+        if (verify) {
+            await initDecoder();
+            if (await decodeCanvas(canvas, ctx) !== text) {
+                throw new Error('QR is unreadable with this logo, reduce logoRatio or shorten the payload');
+            }
+        }
+    }
+
     return new Promise((r) => canvas.toBlob(r, 'image/png'));
 }
