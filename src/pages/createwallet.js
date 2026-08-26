@@ -44,7 +44,7 @@ export function render(params) {
                 </div>
                 <div id="log">Please Scan QR</div>
                 <img src="" id="genImage">
-                <video id="videoQR"></video>
+                <video id="videoQR" playsinline muted></video>
             </div>
         `;
     }
