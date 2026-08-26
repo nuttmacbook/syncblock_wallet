@@ -1,0 +1,25 @@
+@import url('https://fonts.cdnfonts.com/css/neo-fobia');
+@import url('https://fonts.cdnfonts.com/css/inter');
+@import "tailwindcss";
+
+:root {
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    display: flex;
+    place-items: start;
+    min-width: 320px;
+    min-height: 100vh;
+
+}
+
+#app {
+    @apply w-full p-3;
+}
