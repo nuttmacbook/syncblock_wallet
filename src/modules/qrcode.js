@@ -1,5 +1,43 @@
 import encodeQR from '@paulmillr/qr';
 
+let _detector;
+let _decodeQR;
+
+async function initDecoder() {
+    if (_detector || _decodeQR) return;
+    if ('BarcodeDetector' in globalThis) {
+        try {
+            const formats = await BarcodeDetector.getSupportedFormats();
+            if (formats.includes('qr_code')) {
+                _detector = new BarcodeDetector({ formats: ['qr_code'] });
+                return;
+            }
+        } catch {}
+    }
+    _decodeQR = (await import('@paulmillr/qr/decode.js')).default;
+}
+
+async function decodeCanvas(canvas, ctx) {
+    if (_detector) {
+        try {
+            const codes = await _detector.detect(canvas);
+            if (codes[0]) return codes[0].rawValue;
+        } catch {}
+        return null;
+    }
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    try {
+        return _decodeQR({ height: img.height, width: img.width, data: img.data });
+    } catch {
+        return null;
+    }
+}
+
+function videoReady(videoEl) {
+    if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) return Promise.resolve();
+    return new Promise((r) => videoEl.addEventListener('loadeddata', r, { once: true }));
+}
+
 export async function startCamera(videoEl) {
     const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
@@ -10,8 +48,14 @@ export async function startCamera(videoEl) {
     videoEl.muted = true;
     videoEl.srcObject = stream;
     await videoEl.play();
+    await videoReady(videoEl);
+
+    let stopped = false;
+    let cancelScan = null;
 
     const stop = () => {
+        stopped = true;
+        cancelScan?.();
         stream.getTracks().forEach((t) => t.stop());
         videoEl.srcObject = null;
     };
@@ -24,7 +68,61 @@ export async function startCamera(videoEl) {
         return new Promise((r) => canvas.toBlob(r, 'image/png'));
     };
 
-    return { capture, stop };
+    const scan = async ({ timeout = 0 } = {}) => {
+        await initDecoder();
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        canvas.width = canvas.height = 480;
+
+        return new Promise((resolve) => {
+            let done = false;
+            let handle = null;
+
+            const finish = (value) => {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                if (handle != null) {
+                    if (videoEl.cancelVideoFrameCallback) videoEl.cancelVideoFrameCallback(handle);
+                    else cancelAnimationFrame(handle);
+                }
+                cancelScan = null;
+                resolve(value);
+            };
+
+            cancelScan = () => finish(null);
+            const timer = timeout ? setTimeout(() => finish(null), timeout) : null;
+
+            const tick = async () => {
+                if (done || stopped) return finish(null);
+
+                let text = null;
+                if (_detector) {
+                    try { text = (await _detector.detect(videoEl))[0]?.rawValue ?? null; } catch {}
+                } else {
+                    const s = Math.min(videoEl.videoWidth, videoEl.videoHeight) * 0.7;
+                    ctx.drawImage(videoEl,
+                        (videoEl.videoWidth - s) / 2, (videoEl.videoHeight - s) / 2, s, s,
+                        0, 0, 480, 480);
+                    text = await decodeCanvas(canvas, ctx);
+                }
+
+                if (text) {
+                    navigator.vibrate?.(40);
+                    return finish(text);
+                }
+
+                handle = videoEl.requestVideoFrameCallback
+                    ? videoEl.requestVideoFrameCallback(tick)
+                    : requestAnimationFrame(tick);
+            };
+
+            tick();
+        });
+    };
+
+    return { capture, scan, stop, cancel: () => cancelScan?.() };
 }
 
 export function pickImage({ camera = false } = {}) {
@@ -40,8 +138,9 @@ export function pickImage({ camera = false } = {}) {
 }
 
 export async function readQR(blob) {
-    const bitmap = await createImageBitmap(blob);
+    await initDecoder();
 
+    const bitmap = await createImageBitmap(blob);
     const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
     const w = Math.round(bitmap.width * scale);
     const h = Math.round(bitmap.height * scale);
@@ -53,20 +152,7 @@ export async function readQR(blob) {
     ctx.drawImage(bitmap, 0, 0, w, h);
     bitmap.close();
 
-    if ('BarcodeDetector' in globalThis) {
-        try {
-            const codes = await new BarcodeDetector({ formats: ['qr_code'] }).detect(canvas);
-            if (codes[0]) return codes[0].rawValue;
-        } catch {}
-    }
-
-    const { default: decodeQR } = await import('@paulmillr/qr/decode.js');
-    const img = ctx.getImageData(0, 0, w, h);
-    try {
-        return decodeQR({ height: img.height, width: img.width, data: img.data });
-    } catch {
-        return null;
-    }
+    return decodeCanvas(canvas, ctx);
 }
 
 export const MAX_BYTES = { low: 2953, medium: 2331, quartile: 1663, high: 1273 };
@@ -74,7 +160,7 @@ export const MAX_BYTES = { low: 2953, medium: 2331, quartile: 1663, high: 1273 }
 export function makeQR(text, { scale = 10, ecc = 'medium' } = {}) {
     const bytes = new TextEncoder().encode(text).length;
     if (bytes > MAX_BYTES[ecc]) {
-        throw new RangeError(`ข้อมูล ${bytes} ไบต์ เกินความจุ QR (สูงสุด ${MAX_BYTES[ecc]} ไบต์ที่ ecc="${ecc}")`);
+        throw new RangeError(`Payload is ${bytes} bytes, exceeds QR capacity (max ${MAX_BYTES[ecc]} bytes at ecc="${ecc}")`);
     }
 
     const border = 4;
