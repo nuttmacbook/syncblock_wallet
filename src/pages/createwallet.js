@@ -83,7 +83,7 @@ window.scanQr = async () => {
         try {
             //const { deriveChildWallet, wallet } = getWallet().get(0);
 
-            const siweMessage = new SiweMessage(response);
+            const siweMessage = response;
             const EIP4361 = siweMessage.prepareMessage();
             const loginPath = siweMessage.uri + "/login";
             //const signature = await wallet.signMessage(EIP4361);
