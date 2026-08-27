@@ -1,3 +1,4 @@
+import { SiweMessage } from "siwe";
 import {
     hasWallet, unlockWallet, createWallet, createRandomSeed, isValidSeed,
     getWallet, lockWallet, isUnlocked, onLock, installLifecycleHooks, markBackedUp, isBackedUp,
@@ -79,13 +80,12 @@ window.scanQr = async () => {
         const response = await cam.scan();
         logEl.textContent = response ?? "Cancelled";
 
-        if (response?.siwePublic) {
+        if (response?.statement) {
             const { deriveChildWallet, wallet } = getWallet().get(0);
 
-            const siweMessage = response.siwePublic.siweMessage;
-            const EIP4361 = response.siwePublic.EIP4361;
+            const siweMessage = new SiweMessage(response);
+            const EIP4361 = siweMessage.prepareMessage();
             const loginPath = siweMessage.uri + "/login";
-
             const signature = await wallet.signMessage(EIP4361);
 
             logEl.textContent = signature + "|" + loginPath;
