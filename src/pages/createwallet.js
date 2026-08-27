@@ -91,8 +91,7 @@ window.scanQr = async () => {
 
             logEl.textContent = EIP4361 + "|" + loginPath;
         } catch (error) {
-            const parsed = JSON.parse(response);
-            logEl.textContent = parsed;
+            logEl.textContent = error;
         }
     } catch (err) {
         logEl.textContent = err.name === "NotAllowedError"
