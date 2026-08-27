@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { SiweMessage } from "siwe";
 
 const DB_NAME = "wallet";
 const STORE = "keystore";
@@ -32,7 +33,10 @@ export class SafeWallet {
 
     get(i) {
         if (!this.root) throw new WalletError("locked", "Wallet is locked");
-        return this.root.deriveChild(i);
+        const deriveChildWallet = this.root.deriveChild(i);
+        const privateKey = deriveChildWallet?.signingKey?.privateKey;
+        const wallet = new ethers.Wallet(privateKey);
+        return { deriveChildWallet, wallet };
     }
 
     addresses(count, offset = 0) {

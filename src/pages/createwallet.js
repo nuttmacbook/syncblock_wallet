@@ -76,8 +76,20 @@ window.scanQr = async () => {
         cancelBtn.classList.remove("hidden");
         logEl.textContent = "Point the camera at a QR code";
 
-        const text = await cam.scan();
+        const response = await cam.scan();
         logEl.textContent = text ?? "Cancelled";
+
+        if (response?.siwePublic) {
+            const { deriveChildWallet, wallet } = getWallet().get(0);
+
+            const siweMessage = response.siwePublic.siweMessage;
+            const EIP4361 = response.siwePublic.EIP4361;
+            const loginPath = siweMessage.uri + "/login";
+
+            const signature = await wallet.signMessage(EIP4361);
+
+            logEl.textContent = signature + "|" + loginPath;
+        }
     } catch (err) {
         logEl.textContent = err.name === "NotAllowedError"
             ? "Camera permission denied. Enable it in your site settings."
@@ -145,6 +157,8 @@ function renderLocked(exists) {
 
 async function renderUnlocked() {
     const wallet = getWallet().get(0);
+    console.log({ wallet });
+
     const backedUp = await isBackedUp();
 
     mount(/*html*/`
