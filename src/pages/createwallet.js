@@ -77,7 +77,7 @@ window.scanQr = async () => {
         logEl.textContent = "Point the camera at a QR code";
 
         const response = await cam.scan();
-        logEl.textContent = text ?? "Cancelled";
+        logEl.textContent = response ?? "Cancelled";
 
         if (response?.siwePublic) {
             const { deriveChildWallet, wallet } = getWallet().get(0);
