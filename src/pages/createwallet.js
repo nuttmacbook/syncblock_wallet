@@ -80,15 +80,17 @@ window.scanQr = async () => {
         const response = await cam.scan();
         logEl.textContent = response ?? "Cancelled";
 
-        if (response?.statement) {
-            //const { deriveChildWallet, wallet } = getWallet().get(0);
+        try {
+            const { deriveChildWallet, wallet } = getWallet().get(0);
 
             const siweMessage = new SiweMessage(response);
             const EIP4361 = siweMessage.prepareMessage();
             const loginPath = siweMessage.uri + "/login";
-            //const signature = await wallet.signMessage(EIP4361);
+            const signature = await wallet.signMessage(EIP4361);
 
             logEl.textContent = EIP4361 + "|" + loginPath;
+        } catch (error) {
+            logEl.textContent = error;
         }
     } catch (err) {
         logEl.textContent = err.name === "NotAllowedError"
