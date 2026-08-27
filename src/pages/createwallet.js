@@ -81,12 +81,12 @@ window.scanQr = async () => {
         logEl.textContent = response ?? "Cancelled";
 
         try {
-            const { deriveChildWallet, wallet } = getWallet().get(0);
+            //const { deriveChildWallet, wallet } = getWallet().get(0);
 
             const siweMessage = new SiweMessage(response);
             const EIP4361 = siweMessage.prepareMessage();
             const loginPath = siweMessage.uri + "/login";
-            const signature = await wallet.signMessage(EIP4361);
+            //const signature = await wallet.signMessage(EIP4361);
 
             logEl.textContent = EIP4361 + "|" + loginPath;
         } catch (error) {
@@ -166,12 +166,12 @@ async function renderUnlocked() {
     mount(/*html*/`
         <div class="flex flex-col gap-4 break-words">
             ${backedUp ? "" : `<p class="text-red-500 text-sm">Recovery phrase not backed up yet</p>`}
-            <span><strong>Address:</strong> ${wallet.address}</span>
-            <span><strong>Publickey:</strong> ${wallet.publicKey}</span>
+            <span><strong>Address:</strong> ${deriveChildWallet.address}</span>
+            <span><strong>Publickey:</strong> ${deriveChildWallet.publicKey}</span>
             <div id="ScanQRBTN" class="flex justify-center gap-4 flex-wrap">
                 <button onclick="scanQr()" class="${BTN}">Scan QR</button>
                 <button onclick="uploadQr()" class="${BTN}">Upload</button>
-                <button onclick="generateQR('${wallet.address}')" class="${BTN}">Generate</button>
+                <button onclick="generateQR('${deriveChildWallet.address}')" class="${BTN}">Generate</button>
                 <button onclick="lock()" class="bg-gray-500 p-4 py-2 text-white rounded">Lock</button>
             </div>
             <div id="log">Please Scan QR</div>
