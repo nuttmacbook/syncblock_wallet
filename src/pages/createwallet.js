@@ -158,7 +158,7 @@ function renderLocked(exists) {
 }
 
 async function renderUnlocked() {
-    const wallet = getWallet().get(0);
+    const { deriveChildWallet, wallet } = getWallet().get(0);
     console.log({ wallet });
 
     const backedUp = await isBackedUp();
