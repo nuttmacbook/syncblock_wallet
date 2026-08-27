@@ -9,7 +9,7 @@ onLock(() => render());
 
 let cam = null;
 
-window.unlock = async () => {
+window.unlockWithPassword = async () => {
     const password = document.querySelector("#password").value;
     const statusEl = document.querySelector("#status");
     statusEl.textContent = "Unlocking...";
@@ -127,7 +127,7 @@ function renderLocked(exists) {
         <div class="flex flex-col gap-4">
             <input id="password" type="password" autocomplete="current-password"
                    placeholder="Password" class="border p-3 rounded">
-            <button onclick="unlock()" class="${BTN}">Unlock</button>
+            <button onclick="unlockWithPassword()" class="${BTN}">Unlock</button>
             <div id="status" class="text-sm text-gray-500"></div>
         </div>
     ` : /*html*/`
