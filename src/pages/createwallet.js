@@ -190,16 +190,19 @@ export async function signLogin(response) {
 
     console.log({ parsed })
 
-    const uri = "https://syncblock.network/api/v1/auth/login";
+    const uri = parsed?.siweMessage?.uri;
     const address = parsed?.siweMessage?.address;
     const signature = await wallet.signMessage(parsed.EIP4361);
+    
     const body = { address, signature }
 
-    const login_request = await axios.post(uri, body);
-    const data = await login_request.data;
-    console.log({ data });
-
-    return data;
+    try {
+        const login_request = await axios.post(uri, body);
+        const data = await login_request.data;
+        return data
+    } catch (error) {
+        return error
+    }
 }
 
 export async function render(params) {
