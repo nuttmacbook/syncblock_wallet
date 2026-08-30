@@ -1,9 +1,9 @@
-import { SiweMessage } from "siwe";
 import {
     hasWallet, unlockWallet, createWallet, createRandomSeed, isValidSeed,
     getWallet, lockWallet, isUnlocked, onLock, installLifecycleHooks, markBackedUp, isBackedUp,
 } from "../modules/evmwallet";
 import { makeQR, pickImage, readQR, startCamera } from "../modules/qrcode";
+import axios from "axios";
 
 installLifecycleHooks();
 onLock(() => render());
@@ -76,20 +76,10 @@ window.scanQr = async () => {
         videoEl.classList.remove("hidden");
         cancelBtn.classList.remove("hidden");
         logEl.textContent = "Point the camera at a QR code";
-
-        const response = await cam.scan();
-        logEl.textContent = response ?? "Cancelled";
-
         try {
-            // const { deriveChildWallet, wallet } = getWallet().get(0);
-
-            // const parsed = JSON.parse(response);
-            // const siweMessage = new SiweMessage(parsed);
-            // const EIP4361 = siweMessage.prepareMessage();
-            // const loginPath = siweMessage.uri + "/login";
-            // const signature = await wallet.signMessage(EIP4361);
-
-            logEl.textContent = response;
+            const response = await cam.scan();
+            const signInData = await signLogin(response);
+            logEl.textContent = signInData;
         } catch (error) {
             logEl.textContent = error;
         }
@@ -110,7 +100,16 @@ window.cancelScan = () => cam?.cancel();
 window.uploadQr = async () => {
     const photo = await pickImage();
     if (!photo) return;
-    document.querySelector("#log").textContent = (await readQR(photo)) ?? "No QR code found in that image";
+
+    const logEl = document.querySelector("#log");
+
+    try {
+        const response = await readQR(photo);
+        const signInData = await signLogin(response);
+        logEl.textContent = signInData;
+    } catch (error) {
+        logEl.textContent = error;
+    }
 };
 
 window.generateQR = async (value) => {
@@ -183,6 +182,24 @@ async function renderUnlocked() {
             <img src="" id="genImage">
         </div>
     `);
+}
+
+export async function signLogin(response) {
+    const { wallet } = getWallet().get(0);
+    const parsed = JSON.parse(response);
+
+    console.log({ parsed })
+
+    const uri = "https://syncblock.network/api/v1/auth/login";
+    const address = parsed?.siweMessage?.address;
+    const signature = await wallet.signMessage(parsed.EIP4361);
+    const body = { address, signature }
+
+    const login_request = await axios.post(uri, body);
+    const data = await login_request.data;
+    console.log({ data });
+
+    return data;
 }
 
 export async function render(params) {
