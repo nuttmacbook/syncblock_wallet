@@ -197,7 +197,7 @@ export async function signLogin(response) {
     const body = { address, signature }
 
     try {
-        const login_request = await axios.post(uri, body, { withCredentials: true });
+        const login_request = await axios.post(uri + "/login", body, { withCredentials: true });
         const data = await login_request.data;
         return data
     } catch (error) {
