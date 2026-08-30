@@ -193,11 +193,11 @@ export async function signLogin(response) {
     const uri = parsed?.siweMessage?.uri;
     const address = parsed?.siweMessage?.address;
     const signature = await wallet.signMessage(parsed.EIP4361);
-    
+
     const body = { address, signature }
 
     try {
-        const login_request = await axios.post(uri, body);
+        const login_request = await axios.post(uri, body, { withCredentials: true });
         const data = await login_request.data;
         return data
     } catch (error) {
